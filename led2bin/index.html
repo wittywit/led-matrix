@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESP32 GIF Converter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Mono', 'Monaco', 'Cascadia Code', 'Roboto Mono', monospace;
+            background: #0a0a0a;
+            color: #ffffff;
+            min-height: 100vh;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #000000;
+            color: #ffffff;
+            padding: 40px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .header h1 {
+            font-size: 2.8em;
+            margin-bottom: 10px;
+            font-weight: 400;
+            letter-spacing: -1px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.7;
+            font-weight: 300;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-area {
+            border: 2px dashed #333;
+            padding: 60px 40px;
+            text-align: center;
+            margin-bottom: 40px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            background: #111;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #ffffff;
+            background: #1a1a1a;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-family: monospace;
+        }
+
+        .upload-text {
+            font-size: 1.1em;
+            color: #ccc;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: #ffffff;
+            color: #000000;
+            padding: 12px 24px;
+            border: none;
+            cursor: pointer;
+            font-size: 1em;
+            font-family: inherit;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: inline-block;
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn:hover {
+            background: #f0f0f0;
+        }
+
+        .btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #333;
+            color: #ffffff;
+            border: 1px solid #555;
+        }
+
+        .btn-secondary:hover {
+            background: #444;
+        }
+
+        .btn-danger {
+            background: #ff3333;
+            color: #ffffff;
+        }
+
+        .btn-danger:hover {
+            background: #ff5555;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: #111;
+            border: 1px solid #333;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            color: #ffffff;
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 0.5px;
+        }
+
+        .control-group input, .control-group select {
+            padding: 12px 16px;
+            border: 1px solid #333;
+            background: #000;
+            color: #ffffff;
+            font-size: 1em;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+        }
+
+        .control-group input:focus, .control-group select:focus {
+            outline: none;
+            border-color: #ffffff;
+        }
+
+        .file-list {
+            margin-bottom: 40px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px;
+            background: #111;
+            margin-bottom: 1px;
+            border-left: 3px solid #ffffff;
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .file-preview {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border: 1px solid #333;
+            filter: grayscale(100%);
+        }
+
+        .file-details {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: #ffffff;
+        }
+
+        .file-meta {
+            font-size: 0.9em;
+            color: #888;
+        }
+
+        .file-status {
+            padding: 6px 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-ready {
+            background: #333;
+            color: #ffffff;
+        }
+
+        .status-processing {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .status-success {
+            background: #ffffff;
+            color: #000000;
+        }
+
+        .status-error {
+            background: #ff3333;
+            color: #ffffff;
+        }
+
+        .progress-container {
+            margin: 40px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 2px;
+            background: #333;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #ffffff;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .progress-text {
+            text-align: center;
+            margin-top: 15px;
+            font-weight: 400;
+            color: #ffffff;
+        }
+
+        .results {
+            background: #111;
+            padding: 30px;
+            border: 1px solid #333;
+            border-left: 3px solid #ffffff;
+        }
+
+        .results h3 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        .download-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .download-item:last-child {
+            border-bottom: none;
+        }
+
+        .tips {
+            background: #111;
+            padding: 30px;
+            margin-top: 40px;
+            border: 1px solid #333;
+            border-left: 3px solid #ffffff;
+        }
+
+        .tips h3 {
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-weight: 400;
+        }
+
+        .tips ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .tips li {
+            padding: 8px 0;
+            position: relative;
+            padding-left: 30px;
+            color: #ccc;
+        }
+
+        .tips li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #ffffff;
+            font-weight: bold;
+        }
+
+        .button-group {
+            text-align: center;
+            margin: 40px 0;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .file-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #111;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ESP32 GIF CONVERTER</h1>
+            <p>CONVERT ANIMATED GIFS TO ESP32 LED MATRIX BINARY FORMAT</p>
+        </div>
+
+        <div class="main-content">
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">[+]</div>
+                <div class="upload-text">
+                    DRAG & DROP GIF FILES HERE OR CLICK TO BROWSE
+                </div>
+                <button class="btn" id="selectFilesBtn">
+                    SELECT GIF FILES
+                </button>
+                <input type="file" id="fileInput" class="file-input" multiple accept=".gif">
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="matrixWidth">MATRIX WIDTH:</label>
+                    <input type="number" id="matrixWidth" value="16" min="1" max="64">
+                </div>
+                <div class="control-group">
+                    <label for="matrixHeight">MATRIX HEIGHT:</label>
+                    <input type="number" id="matrixHeight" value="16" min="1" max="64">
+                </div>
+                <div class="control-group">
+                    <label for="colorOrder">COLOR ORDER:</label>
+                    <select id="colorOrder">
+                        <option value="rgb">RGB (NO CONVERSION)</option>
+                        <option value="grb" selected>GRB (NEOPIXEL)</option>
+                        <option value="bgr">BGR</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="minDelay">MIN FRAME DELAY (MS):</label>
+                    <input type="number" id="minDelay" value="50" min="10" max="1000">
+                </div>
+            </div>
+
+            <div class="file-list" id="fileList"></div>
+
+            <div class="progress-container" id="progressContainer" style="display: none;">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Ready to convert...</div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn" id="convertBtn" disabled>
+                    CONVERT ALL GIFS
+                </button>
+                <button class="btn btn-secondary" id="downloadAllBtn" style="display: none;">
+                    DOWNLOAD ALL FILES
+                </button>
+            </div>
+
+            <div class="results" id="results" style="display: none;">
+                <h3>CONVERSION COMPLETE</h3>
+                <div id="downloadList"></div>
+            </div>
+
+            <div class="tips">
+                <h3>INSTRUCTIONS</h3>
+                <ul>
+                    <li>ALL IMAGES ARE AUTOMATICALLY RESIZED TO YOUR SPECIFIED MATRIX DIMENSIONS</li>
+                    <li>COLORS ARE CONVERTED TO YOUR SELECTED FORMAT (GRB FOR NEOPIXELS)</li>
+                    <li>ANIMATED GIFS USE REAL FRAME TIMING WITH MINIMUM DELAY ENFORCEMENT</li>
+                    <li>FILES ARE NUMBERED SEQUENTIALLY (GIF1.BIN, GIF2.BIN, ETC.)</li>
+                    <li>CREATE CORRESPONDING TEXT FILES (TEXT1.TXT, TEXT2.TXT, ETC.) FOR YOUR ESP32</li>
+                    <li>UPLOAD ALL FILES TO YOUR ESP32 SD CARD</li>
+                    <li>USE THE 'STATUS' COMMAND ON YOUR ESP32 TO VERIFY CONVERSION</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="gif-converter.js"></script>
+</body>
+</html>
